@@ -87,6 +87,7 @@ typedef enum {
     SAT_LIST_COL_RANGE,         /*!< Range. */
     SAT_LIST_COL_RANGE_RATE,    /*!< Range rate. */
     SAT_LIST_COL_NEXT_EVENT,    /*!< Next event AOS or LOS depending on El. */
+    SAT_LIST_COL_NEXT_EVENT_COUNTDOWN,   /*!<Next event countdown. */
     SAT_LIST_COL_AOS,           /*!< Next AOS regardless of El. */
     SAT_LIST_COL_LOS,           /*!< Next LOS regardless of El. */
     SAT_LIST_COL_LAT,           /*!< Latitude. */
@@ -120,6 +121,7 @@ typedef enum {
     SAT_LIST_FLAG_RANGE = 1 << SAT_LIST_COL_RANGE,      /*!< Range. */
     SAT_LIST_FLAG_RANGE_RATE = 1 << SAT_LIST_COL_RANGE_RATE,    /*!< Range rate. */
     SAT_LIST_FLAG_NEXT_EVENT = 1 << SAT_LIST_COL_NEXT_EVENT,    /*!< Next event. */
+    SAT_LIST_FLAG_NEXT_EVENT_COUNTDOWN = 1 << SAT_LIST_COL_NEXT_EVENT_COUNTDOWN, /*!< Next event countdown. */
     SAT_LIST_FLAG_AOS = 1 << SAT_LIST_COL_AOS,  /*!< Next AOS. */
     SAT_LIST_FLAG_LOS = 1 << SAT_LIST_COL_LOS,  /*!< Next LOS. */
     SAT_LIST_FLAG_LAT = 1 << SAT_LIST_COL_LAT,  /*!< Latitude. */

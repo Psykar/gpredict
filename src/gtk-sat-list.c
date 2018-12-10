@@ -57,6 +57,7 @@ const gchar    *SAT_LIST_COL_TITLE[SAT_LIST_COL_NUMBER] = {
     N_("Range"),
     N_("Rate"),
     N_("Next Event"),
+    N_("Next Event Countdown"),
     N_("Next AOS"),
     N_("Next LOS"),
     N_("Lat"),
@@ -90,6 +91,7 @@ const gchar    *SAT_LIST_COL_HINT[SAT_LIST_COL_NUMBER] = {
     N_("Slant Range"),
     N_("Range Rate"),
     N_("Next Event"),
+    N_("Next Event Countdown"),
     N_("Next AOS"),
     N_("Next LOS"),
     N_("Latitude"),
@@ -121,6 +123,7 @@ const gfloat    SAT_LIST_COL_XALIGN[SAT_LIST_COL_NUMBER] = {
     1.0,                        // range
     1.0,                        // range rate
     0.5,                        // next event
+    0.5,                        // next event countdown
     0.5,                        // AOS
     0.5,                        // LOS
     1.0,                        // lat
@@ -193,6 +196,12 @@ static void     operational_status_cell_data_function(GtkTreeViewColumn * col,
                                            GtkTreeModel * model,
                                            GtkTreeIter * iter,
                                            gpointer column);
+
+
+static void     time_cell_data_function(GtkTreeViewColumn * col,
+                                        GtkCellRenderer * renderer,
+                                        GtkTreeModel * model,
+                                        GtkTreeIter * iter, gpointer column);
 
 
 static void     event_cell_data_function(GtkTreeViewColumn * col,
@@ -395,6 +404,10 @@ GtkWidget      *gtk_sat_list_new(GKeyFile * cfgdata, GHashTable * sats,
                                     event_cell_compare_function,
                                     GTK_WIDGET(satlist), NULL);
 
+    gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(model), SAT_LIST_COL_NEXT_EVENT_COUNTDOWN,
+                                    event_cell_compare_function,
+                                    GTK_WIDGET(satlist), NULL);
+
     /* satellite name should be initial sorting criteria */
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(sortable),
                                          satlist->sort_column,
@@ -436,6 +449,7 @@ static GtkTreeModel *create_and_fill_model(GHashTable * sats)
                                    G_TYPE_DOUBLE,       // range
                                    G_TYPE_DOUBLE,       // range rate
                                    G_TYPE_STRING,       // next event
+                                   G_TYPE_DOUBLE,       // next event countdown
                                    G_TYPE_DOUBLE,       // next AOS
                                    G_TYPE_DOUBLE,       // next LOS
                                    G_TYPE_DOUBLE,       // ssp lat
@@ -485,6 +499,7 @@ static void sat_list_add_satellites(gpointer key, gpointer value,
                        SAT_LIST_COL_RANGE_RATE, sat->range_rate,
                        SAT_LIST_COL_DIR, "-",
                        SAT_LIST_COL_NEXT_EVENT, "--- N/A ---",
+                       SAT_LIST_COL_NEXT_EVENT_COUNTDOWN, 0.0,
                        SAT_LIST_COL_AOS, sat->aos,
                        SAT_LIST_COL_LOS, sat->los,
                        SAT_LIST_COL_LAT, sat->ssplat,
@@ -780,6 +795,30 @@ static gboolean sat_list_update_sats(GtkTreeModel * model, GtkTreePath * path,
             g_free(alstr);
         }
 
+        if (satlist->flags & SAT_LIST_FLAG_NEXT_EVENT_COUNTDOWN)
+        {
+            gdouble         number;
+            GtkSatList   *satlist = GTK_SAT_LIST(data);
+            gdouble now = satlist->tstamp;
+
+
+            if (sat->aos > sat->los)
+            {
+                /* next event is LOS */
+                number = sat->los;
+            }
+            else
+            {
+                /* next event is AOS */
+                number = sat->aos;
+            }
+
+            number -= now;
+
+            gtk_list_store_set(GTK_LIST_STORE(model), iter,
+                                SAT_LIST_COL_NEXT_EVENT_COUNTDOWN, number, -1);
+        }
+
         if (satlist->flags & SAT_LIST_FLAG_VISIBILITY)
         {
             sat_vis_t       vis;
@@ -878,10 +917,65 @@ static void check_and_set_cell_renderer(GtkTreeViewColumn * column,
                                                 GUINT_TO_POINTER(i), NULL);
         break;
     
+    case SAT_LIST_COL_NEXT_EVENT_COUNTDOWN:
+        gtk_tree_view_column_set_cell_data_func(column,
+                                                renderer,
+                                                time_cell_data_function,
+                                                GUINT_TO_POINTER(i), NULL);
 
     default:
         break;
     }
+}
+
+/* AOS/LOS; convert julian date to string */
+static void time_cell_data_function(GtkTreeViewColumn * col,
+                                    GtkCellRenderer * renderer,
+                                    GtkTreeModel * model,
+                                    GtkTreeIter * iter, gpointer column)
+{
+    (void)col;
+
+    gdouble         number;
+    gchar          *buff;
+    guint           coli = GPOINTER_TO_UINT(column);
+
+    guint           h, m, s;
+
+    /* get cell data */
+    gtk_tree_model_get(model, iter, coli, &number, -1);
+
+    /* format the time code */
+    if (number < 0.0)
+    {
+        buff = g_strdup(_("Never"));
+    }
+    else
+    {
+        /* convert julian date to seconds */
+        s = (guint) (number * 86400);
+
+        /* extract hours */
+        h = (guint) floor(s / 3600);
+        s -= 3600 * h;
+
+        /* extract minutes */
+        m = (guint) floor(s / 60);
+        s -= 60 * m;
+
+        if (h > 0)
+        {
+            buff = g_strdup_printf("%02d:%02d:%02d", h, m, s);
+        }
+        else
+        {
+            buff = g_strdup_printf("%02d:%02d", m, s);
+        }
+    }
+
+    /* render the cell */
+    g_object_set(renderer, "text", buff, NULL);
+    g_free(buff);
 }
 
 /* Render column containing the operational status */
